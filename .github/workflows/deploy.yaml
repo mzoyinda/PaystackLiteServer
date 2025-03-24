@@ -41,9 +41,6 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Application
-        run: npm run build # Ensure you have a build script in package.json
-
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
