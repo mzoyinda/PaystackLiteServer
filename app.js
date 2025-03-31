@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
 
 const startServer = async () => {
   try {
-    await connectDB(); 
+      await connectDB();
 
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
@@ -29,4 +29,9 @@ const startServer = async () => {
   }
 };
 
-startServer();
+
+if (process.env.NODE_ENV !== "test") {
+  startServer();
+}
+
+module.exports = app; 

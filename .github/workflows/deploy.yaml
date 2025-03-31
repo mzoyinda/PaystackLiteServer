@@ -23,12 +23,17 @@ jobs:
           node-version: 18
           cache: 'npm'
 
+      - name: Create Test Environment File
+        run: |
+          echo "NODE_ENV=test" >> .env.test
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env.test
+          echo "PAYSTACK_SECRET=${{ secrets.PAYSTACK_SECRET }}" >> .env.test
+
       - name: Install Dependencies
         run: npm install
 
-      - name: Run Tests (Optional)
+      - name: Run Tests
         run: npm test
-        continue-on-error: true 
 
   deploy:
     name: Deploy to Render
