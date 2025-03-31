@@ -9,8 +9,8 @@ on:
       - main 
 
 jobs:
-  test:
-    name: Run Tests
+  ci:
+    name: Install & Test
     runs-on: ubuntu-latest
 
     steps:
@@ -21,30 +21,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install
 
-  build:
-    name: Build Application
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install Dependencies
-        run: npm install
+      - name: Run Tests (Optional)
+        run: npm test
+        continue-on-error: true # Doesn't fail pipeline since tests aren't set up
 
   deploy:
     name: Deploy to Render
     runs-on: ubuntu-latest
-    needs: build 
+    needs: ci
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Trigger Render Deploy

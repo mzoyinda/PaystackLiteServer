@@ -1,117 +1,91 @@
-const request = require('request');
-const Payment = require('../models/payment');
-const _ = require('lodash');
-const { initializePayment, verifyPayment } = require('../utils/payment')(request);
+const Payment = require("../models/payment");
+const _ = require("lodash");
+const { initializePayment, verifyPayment } = require("../utils/payment");
 
 class PaymentService {
-    startPayment(data) {
+    async initializePayment(data) {
         try {
-            const form = _.pick(data, ['amount', 'email', 'full_name']);
+            // Extract only required fields
+            const form = _.pick(data, ["amount", "email", "full_name"]);
             form.metadata = { full_name: form.full_name };
-            form.amount *= 100; // Convert to kobo/cent
-    
-            return new Promise((resolve, reject) => {
-                initializePayment(form, async (error, body) => {
-                    if (error) {
-                        console.error("Payment Initialization Error:", error.message);
-                        return reject(error.message);
-                    }
-    
-                    const response = JSON.parse(body);
-                    const { reference, authorization_url } = response.data;
-    
-                    // 🔹 Save payment to MongoDB
-                    const newPayment = new Payment({
-                        reference,
-                        amount: form.amount,
-                        email: form.email,
-                        full_name: form.full_name,
-                        status: "pending", // Initial status before verification
-                    });
-    
-                    await newPayment.save(); // Save to MongoDB
-                    
-                    resolve({
-                        status: "success",
-                        message: "Payment initialized successfully.",
-                        data: {
-                            authorization_url,
-                            reference
-                        }
-                    });
-                });
+            form.amount *= 100; // Convert amount to kobo
+
+            // Initialize payment
+            const response = await initializePayment(form);
+            const { reference, authorization_url } = response.data;
+
+            // Save payment record in MongoDB
+            const newPayment = new Payment({
+                reference,
+                amount: form.amount,
+                email: form.email,
+                full_name: form.full_name,
+                status: "pending",
             });
+
+            await newPayment.save();
+
+            return {
+                status: "success",
+                message: "Payment initialized successfully.",
+                data: { authorization_url, reference },
+            };
         } catch (error) {
-            console.error("Start Payment Service Error:", error);
-            throw new Error("Payment initialization failed.");
+            console.error("Start Payment Service Error:", error.message);
+            throw new Error(error.message || "Payment initialization failed.");
         }
     }
-    
 
-    // createPayment(req) {
-    //     return new Promise((resolve, reject) => {
-    //         try {
-    //             const ref = req.reference;
-    //             if (!ref) {
-    //                 return reject({ code: 400, msg: 'No reference passed in query!' });
-    //             }
-
-    //             verifyPayment(ref, async (error, body) => {
-    //                 if (error) {
-    //                     console.error("Payment Verification Error:", error.message);
-    //                     return reject(error.message);
-    //                 }
-
-    //                 const response = JSON.parse(body);
-    //                 if (!response.data) {
-    //                     return reject({ code: 500, msg: "Invalid payment response" });
-    //                 }
-
-    //                 const { reference, amount, status, customer, metadata } = response.data;
-    //                 const newPayment = {
-    //                     reference,
-    //                     amount,
-    //                     email: customer.email,
-    //                     full_name: metadata?.full_name || "N/A",
-    //                     status
-    //                 };
-
-    //                 const payment = await Payment.create(newPayment);
-    //                 resolve(payment);
-    //             });
-    //         } catch (error) {
-    //             error.source = 'Create Payment Service';
-    //             reject(error);
-    //         }
-    //     });
-    // }
-
-    paymentReceipt(reference) {
-        return new Promise((resolve, reject) => {
-            try {
-                if (!reference) {
-                    return reject({ code: 400, msg: 'Reference is required' });
-                }
-    
-                Payment.findOne({ reference })
-                    .then(transaction => {
-                        if (!transaction) {
-                            return reject({ code: 404, msg: 'Payment not found' });
-                        }
-                        resolve(transaction);
-                    })
-                    .catch(error => {
-                        error.source = 'Payment Receipt';
-                        reject(error);
-                    });
-    
-            } catch (error) {
-                error.source = 'Payment Receipt';
-                reject(error);
+    async verifyPayment(reference) {
+        try {
+            if (!reference) {
+                throw new Error("Reference is required");
             }
-        });
+
+            // Check Paystack API for latest payment status
+            const paystackResponse = await verifyPayment(reference);
+            const paymentData = paystackResponse.data;
+
+            if (!paymentData || paymentData.status !== "success") {
+                throw new Error("Payment verification failed or payment not successful");
+            }
+
+            // 2️⃣ Find or create payment in DB
+            let transaction = await Payment.findOne({ reference });
+
+            if (!transaction) {
+                // If transaction doesn't exist in DB, create it
+                transaction = new Payment({
+                    reference,
+                    amount: paymentData.amount,
+                    email: paymentData.customer.email,
+                    full_name: paymentData.metadata?.full_name || "Unknown",
+                    status: paymentData.status, // Set status based on Paystack API
+                });
+
+                await transaction.save();
+            } else {
+                // 3️⃣ Update existing transaction status
+                transaction.status = paymentData.status;
+                await transaction.save();
+            }
+
+            return transaction;
+        } catch (error) {
+            console.error("Payment Verification Error:", error.message);
+            throw new Error(error.message || "Payment verification failed.");
+        }
     }
-    
+
+    async getAllPayments() {
+        try {
+            const payments = await Payment.find().sort({ createdAt: -1 }); // Fetch all payments sorted by most recent
+            return payments;
+        } catch (error) {
+            console.error("Fetch All Payments Error:", error);
+            throw new Error("Could not retrieve payments.");
+        }
+    }
 }
 
 module.exports = PaymentService;

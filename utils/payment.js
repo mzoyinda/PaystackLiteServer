@@ -1,42 +1,43 @@
-require("dotenv").config({ path: "./config/config.env" });
+const axios = require("axios");
 
-const paystack = (request) => {
-    const MySecretKey = process.env.PAYSTACK_SECRET_KEY
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY
+const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
-    const initializePayment = (form, mycallback) => {
-
-        const options = {
-            url: 'https://api.paystack.co/transaction/initialize',
-            headers: {
-                authorization: MySecretKey,
-                'content-type': 'application/json',
-                'cache-control' : 'no-cache'
-            },
-            form
-        }
-
-        const callback = (error, response, body) => {
-            return mycallback(error, body)
-        }
-        request.post(options, callback)
-    }
-
-    const verifyPayment = (ref, mycallback) => {
-        const options = {
-            url : `https://api.paystack.co/transaction/verify/${encodeURIComponent(ref)}`,
-            headers: {
-                authorization: MySecretKey,
-                'content-type' : 'application/json',
-                'cache-control' : 'no-cache'
+const initializePayment = async (form) => {
+    try {
+        const response = await axios.post(
+            `${PAYSTACK_BASE_URL}/transaction/initialize`,
+            form,
+            {
+                headers: {
+                    authorization: PAYSTACK_SECRET_KEY,
+                    "content-type": "application/json",
+                },
             }
-        }
-        const callback = (error, response, body) =>{
-            return mycallback(error, body)
-        }
-        request(options, callback)
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Payment Initialization Error:", error?.response?.data || error.message);
+        throw new Error(error?.response?.data?.message || "Payment initialization failed");
     }
+};
 
-    return {initializePayment, verifyPayment};
-}
+const verifyPayment = async (reference) => {
+    try {
+        const response = await axios.get(
+            `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
+            {
+                headers: {
+                    authorization: PAYSTACK_SECRET_KEY,
+                    "content-type": "application/json",
+                },
+            }
+        );
+        return response.data;
+    } catch (error) {
+        console.error("Payment Verification Error:", error?.response?.data || error.message);
+        throw new Error(error?.response?.data?.message || "Payment verification failed");
+    }
+};
 
-module.exports = paystack;
+module.exports = { initializePayment, verifyPayment };
