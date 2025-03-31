@@ -23,11 +23,10 @@ jobs:
           node-version: 18
           cache: 'npm'
 
-      - name: Create Test Environment File
+      - name: Create .env file
         run: |
-          echo "NODE_ENV=test" >> .env.test
-          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env.test
-          echo "PAYSTACK_SECRET=${{ secrets.PAYSTACK_SECRET }}" >> .env.test
+          echo "NODE_ENV=test" >> .env
+          echo "PAYSTACK_SECRET=${{ secrets.PAYSTACK_SECRET_KEY }}" >> .env
 
       - name: Install Dependencies
         run: npm install

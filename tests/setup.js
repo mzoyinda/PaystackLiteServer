@@ -4,14 +4,16 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 
 let mongoServer;
 
-console.log("✅ Jest is using TEST ENV:", process.env.NODE_ENV);
-
 beforeAll(async () => {
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
 
-  await mongoose.connect(mongoUri); // Removed deprecated options
+  await mongoose.connect(mongoUri); 
   console.log("Connected to in-memory MongoDB");
+
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    throw new Error("❌ PAYSTACK_SECRET_KEY is missing in test environment!");
+  }
 });
 
 afterAll(async () => {
