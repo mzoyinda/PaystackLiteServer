@@ -28,7 +28,7 @@ jobs:
 
       - name: Run Tests (Optional)
         run: npm test
-        continue-on-error: true # Doesn't fail pipeline since tests aren't set up
+        continue-on-error: true 
 
   deploy:
     name: Deploy to Render
