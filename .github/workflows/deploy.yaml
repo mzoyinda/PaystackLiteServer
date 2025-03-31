@@ -29,10 +29,6 @@ jobs:
           echo "PAYSTACK_SECRET_KEY=${{ secrets.PAYSTACK_SECRET_KEY }}" >> .env
         shell: bash
 
-      - name: Verify .env File (Debugging)
-        run: cat .env  # This should be removed after debugging
-
-
       - name: Install Dependencies
         run: npm install
 
