@@ -12,7 +12,9 @@ beforeAll(async () => {
   console.log("Connected to in-memory MongoDB");
 
   if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error("❌ PAYSTACK_SECRET_KEY is missing in test environment!");
+    throw new Error("❌ PAYSTACK_SECRET_KEY is missing!");
+  } else {
+    console.log("✅ PAYSTACK_SECRET_KEY is loaded!");
   }
 });
 
